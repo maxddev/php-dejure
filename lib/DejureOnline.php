@@ -20,9 +20,19 @@ namespace S1SYPHOS;
 class DejureOnline
 {
     /**
+     * Constants
+     */
+
+    /**
      * Current version of php-dejure
      */
     const VERSION = '1.0.0';
+
+    /**
+     * Current API version
+     */
+
+    const DJO_VERSION = '2.22';
 
 
     /**
@@ -100,9 +110,6 @@ class DejureOnline
 
     public function __construct(string $cacheDir = null)
     {
-        # Define current API version
-        define('DJO_VERSION', '2.22');
-
         # Determine path to caching path
         if (isset($cacheDir)) {
             $this->cacheDir = $cacheDir;
@@ -252,7 +259,7 @@ class DejureOnline
             'class'                 => $this->class,
             'buzer'                 => (int)$this->buzer,
             'zeitlimit_in_sekunden' => $this->timeout,
-            'version'               => 'php-' . DJO_VERSION,
+            'version'               => 'php-' . self::DJO_VERSION,
             'Schema'                => 'https',
         ];
 
@@ -458,7 +465,7 @@ class DejureOnline
         }
 
         $header = 'POST /dienste/vernetzung/vernetzen HTTP/1.0' . "\r\n";
-        $header .= 'User-Agent: ' . $this->provider. ' (PHP-Vernetzung ' . DJO_VERSION. ')' . "\r\n";
+        $header .= 'User-Agent: ' . $this->provider. ' (PHP-Vernetzung ' . self::DJO_VERSION. ')' . "\r\n";
         $header .= 'Content-type: application/x-www-form-urlencoded' . "\r\n";
         $header .= 'Content-length: ' .strlen($uebergabe). "\r\n";
         $header .= 'Host: rechtsnetz.dejure.org' . "\r\n";
