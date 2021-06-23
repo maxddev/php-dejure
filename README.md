@@ -22,14 +22,39 @@ Install this package with [Composer](https://getcomposer.org):
 composer require S1SYPHOS/php-dejure
 ```
 
+An example implementation could look something like this:
+
+```php
+<?php
+
+require_once('vendor/autoload.php');
+
+use S1SYPHOS\DejureOnline;
+
+$object = new DejureOnline();
+
+$object->setProvider('MyDejureTest');
+$object->setMail('hello@mydomain.com');
+
+$text  = '<div>';
+$text .= 'This is a <strong>simple</strong> HTML text.';
+$text .= 'It contains legal norms, like § Art. 12 GG.';
+$text .= '.. or § 433 BGB!';
+$text .= '</div>';
+
+echo $object->dejurify($text);
+```
+
 
 ## Roadmap
 
 - [ ] Add tests
-- [ ] Adding checks to `__construct`
-- [ ] Attempt cache directory creation
-- [ ] Translate code
-- [ ] Further optimize code
+- [x] ~~Adding checks to `__construct`~~
+- [x] ~~Attempt cache directory creation~~
+- [x] ~~Improve code~~
+- [ ] Improve code more
+- [ ] Translate code (almost done)
+- [ ] `join` paths, so trailing slash is no longer required
 
 
 **Happy coding!**
