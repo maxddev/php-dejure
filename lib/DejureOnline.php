@@ -487,7 +487,7 @@ class DejureOnline
         # Verify data integrity by comparing original & modified text
         # (1) Normalize input
         $text = trim($text);
-        $result = trim($result);
+        $result = trim($response);
 
         # (2) Check if processed text (minus `dejure.org` links) matches original (unprocessed) text ..
         if (preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $text) == preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $result)) {
