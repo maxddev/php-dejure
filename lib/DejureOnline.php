@@ -26,7 +26,7 @@ class DejureOnline
     /**
      * Current version of php-dejure
      */
-    const VERSION = '1.1.0';
+    const VERSION = '1.2.0';
 
     /**
      * Current API version
@@ -40,11 +40,38 @@ class DejureOnline
      */
 
     /**
-     * Defines path to caching directory
+     * Cache driver
      *
-     * @var string
+     * @var \Psr\SimpleCache\CacheInterface
      */
-    protected $cacheDir = './tmp/';
+    protected $cache;
+
+    /**
+     * Determines whether output was fetched from cache
+     *
+     * @var bool
+     */
+    public $fromCache = false;
+
+    /**
+     * Holds tokens of all possible cache drivers
+     *
+     * See https://github.com/terrylinooo/simple-cache
+     *
+     * @var array
+     */
+    protected $cacheDrivers = [
+        'file',
+        'redis',
+        'mongo',
+        'mysql',
+        'sqlite',
+        'apc',
+        'apcu',
+        'memcache',
+        'memcached',
+        'wincache',
+    ];
 
     /**
      * Defines provider designation
@@ -97,34 +124,18 @@ class DejureOnline
     protected $cacheDuration = 2;
 
     /**
-     * Timeout period for API requests (in seconds)
+     * Defines timeout for API requests (in seconds)
      *
      * @var int
      */
     protected $timeout = 3;
-
-    /**
-     * Expired (= removed) cache entries
-     *
-     * @var array
-     */
-    public $expired = [];
 
 
     /*
      * Constructor
      */
 
-    public function __construct(string $cacheDir = null)
-    {
-        # Determine path to caching path
-        if (isset($cacheDir)) {
-            $this->cacheDir = $cacheDir;
-        }
-
-        # Create cache directory (if not existent)
-        $this->createDir($this->cacheDir);
-
+    public function __construct(string $cacheDir = './.cache', string $cacheDriver = 'file', array $cacheConfig = null) {
         # Provide sensible defaults, like ..
         if (isset($_SERVER['HTTP_HOST'])) {
             # (1) .. current domain for provider designation
@@ -134,6 +145,30 @@ class DejureOnline
             if (empty($this->email)) {
                 $this->email = 'webmaster@' . $this->domain;
             }
+        }
+
+        # Initialize cache
+        # (1) Create  path to caching directory (if not existent)
+        $this->createDir($cacheDir);
+
+        # (2) Determine caching options
+        $cacheConfig = $cacheConfig ?? [
+            'storage' => $cacheDir,
+            'gc_enable' => true,
+        ];
+
+        # (3) Check provided cache driver
+        if (in_array($cacheDriver, $this->cacheDrivers) === false) {
+            throw new \Exception(sprintf('Cache driver "%s" cannot be initiated', $cacheDriver));
+        }
+
+        # (4) Initialize new cache object
+        $this->cache = new \Shieldon\SimpleCache\Cache($cacheDriver, $cacheConfig);
+
+        # (5) Build database when using SQLite for the first time
+        # TODO: Add check for MySQL, see https://github.com/terrylinooo/simple-cache/issues/8
+        if ($cacheDriver == 'sqlite' && !file_exists(join([$cacheDir, 'cache.sqlite3']))) {
+            $this->cache->rebuild();
         }
     }
 
@@ -228,10 +263,7 @@ class DejureOnline
      */
 
     /**
-     * Main function:
-     * (1) Extracts linkable citations
-     * (2) Processes them (if uncached) via API
-     * (3) Removes expired cache entries
+     * Processes linkable citations & caches text (if uncached or expired)
      *
      * @param string $text Original (unprocessed) text
      * @return string Processed text if successful, otherwise unprocessed text
@@ -243,137 +275,26 @@ class DejureOnline
             return $text;
         }
 
-        # Check if text was processed & cached before ..
-        $result = $this->fetchCache($text);
-
-        if (empty($result)) {
-            # .. otherwise, process & cache it
-            # TODO: Move caching logic to main function, so it's clear what's happening and when etc
-            $result = $this->connect($text);
-        }
-
-        # Remove expired cache entries every day between 0am - 6am
-        # TODO: Remove data dynamically
-        if (date('G') < 6) {
-            $this->resetCache();
-        }
-
-        return $result;
-    }
-
-
-    /**
-     * Fetches processed text from cache (if present)
-     *
-     * @param string $text Original (unprocessed) text
-     * @return string|bool Processed text from cache, otherwise false
-     */
-    protected function fetchCache(string $text)
-    {
-        # Normalize input
+        # Remove whitespaces from both ends of the string
         $text = trim($text);
 
-        # Convert cache duration from days to seconds
-        $cacheDuration = $this->days2seconds($this->cacheDuration);
+        # Check if text was processed & cached before ..
+        $result = false;
 
-        # Create hash, using it as filename
+        # Build unique caching key
         $hash = $this->text2hash($text);
 
-        # If cache file exists, check if ..
-        if (file_exists($this->cacheDir . $hash)) {
-            # .. cache file is expired & has to be renewed, otherwise ..
-            if (filemtime($this->cacheDir . $hash) < time() - $cacheDuration) {
-                return false;
-            }
+        # If cache file exists & its content is valid (= not expired) ..
+        if ($this->cache->has($hash) === true) {
+            # (1) .. report back
+            $this->fromCache = true;
 
-            # .. fetch processed text from cache file
-            return file_get_contents($this->cacheDir . $hash);
+            # (2) .. load processed text from cache
+            return $this->cache->get($hash);
         }
 
-        # Report back that cache is empty & has to be renewed
-        return false;
-    }
-
-
-    /**
-     * Stores processed text in cache
-     *
-     * @param string $text Original (unprocessed) text
-     * @param string $result Modified (processed) text
-     * @return void
-     */
-    protected function storeCache(string $text, string $result): void
-    {
-        # Check if text was processed before by using its hash as filename
-        $hash = $this->text2hash($text);
-        $file = fopen($this->cacheDir . $hash, 'w');
-
-        if ($file !== false) {
-            fwrite($file, $result);
-            fclose($file);
-        }
-    }
-
-
-    /**
-     * Removes expired cache entries
-     *
-     * @return void
-     */
-    public function resetCache()
-    {
-        # Convert cache duration from days to seconds
-        $cacheDuration = $this->days2seconds($this->cacheDuration);
-
-        # Fetch time of last cache reset
-        # (1) Check if file containing this information exists ..
-        if (!file_exists($this->cacheDir . 'cache_status')) {
-            # .. if not, create it (since apparently no cache exists)
-            $this->cacheExpiry();
-
-            return;
-        }
-
-        # (2) Load file containing last cache reset
-        $lastReset = file_get_contents($this->cacheDir . 'cache_status');
-
-        # Proceed if last reset dates back farther than one day
-        if (time() - $lastReset > $this->days2seconds(1)) {
-            $cacheFiles = scandir($this->cacheDir);
-
-            if (!empty($cacheFiles[0])) {
-                foreach ($cacheFiles as $cacheFile) {
-                    if (in_array($cacheFile, ['.', '..']) === false) {
-                        $fileTime = filemtime($this->cacheDir . $cacheFile);
-
-                        # Delete cached files if past their expiry time
-                        if ($fileTime < (time() - $cacheDuration)) {
-                            unlink($this->cacheDir . $cacheFile);
-                            $this->expired[time()] = $this->cacheDir . $cacheFile;
-                        }
-                    }
-                }
-            }
-
-            # Mark cache as cleared, saving current time to file
-            $this->cacheExpiry();
-        }
-    }
-
-
-    /**
-     * Creates file that contains time of last cache reset
-     *
-     * @return void
-     */
-    protected function cacheExpiry(): void
-    {
-        # Prepare file
-        $file = fopen($this->cacheDir . 'cache_status', 'w');
-
-        # Add timestamp
-        fputs($file, mktime(0, 0, 0, date('d'), date('m'), date('Y')));
-        fclose($file);
+        # .. otherwise, process text & cache it
+        return $this->connect($text);
     }
 
 
@@ -390,16 +311,13 @@ class DejureOnline
     protected function connect(string $text): string
     {
         # Normalize input
-        # (1) Remove whitespaces from both ends of the string
-        $text = trim($text);
-
-        # (2) Link style only supports two possible options
+        # (1) Link style only supports two possible options
         $linkStyle = in_array($this->linkStyle, ['weit', 'schmal']) === true
             ? $this->linkStyle
             : 'weit'
         ;
 
-        # (3) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
+        # (2) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
         $buzer = (int)$this->buzer;
 
         # Note: Changing parameters requires manual cache reset!
@@ -485,17 +403,15 @@ class DejureOnline
         }
 
         # Verify data integrity by comparing original & modified text
-        # (1) Normalize input
-        $text = trim($text);
+        # (1) Remove whitespaces from both ends of the string
         $result = trim($response);
 
         # (2) Check if processed text (minus `dejure.org` links) matches original (unprocessed) text ..
         if (preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $text) == preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $result)) {
-            # .. if so, store result in cache & return it
-            $this->storeCache($text, $result);
+            # Build unique caching key & store result in cache
+            $this->cache->set($this->text2hash($text), $result, $this->days2seconds($this->cacheDuration));
 
             return $result;
-
         }
 
         # .. otherwise, return original (unprocessed) text
