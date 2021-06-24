@@ -130,12 +130,26 @@ class DejureOnline
      */
     protected $timeout = 3;
 
+    /**
+     * Defines timeout for API response streams (in seconds)
+     *
+     * @var int
+     */
+    protected $streamTimeout = 10;
+
+    /**
+     * Controls `user agent` header
+     *
+     * @var string
+     */
+    protected $userAgent = null;
+
 
     /*
      * Constructor
      */
 
-    public function __construct(string $cacheDir = './.cache', string $cacheDriver = 'file', array $cacheConfig = null) {
+    public function __construct(string $cacheDir = './.cache', string $cacheDriver = 'file', array $cacheConfig = []) {
         # Provide sensible defaults, like ..
         if (isset($_SERVER['HTTP_HOST'])) {
             # (1) .. current domain for provider designation
@@ -148,24 +162,26 @@ class DejureOnline
         }
 
         # Initialize cache
-        # (1) Create  path to caching directory (if not existent)
-        $this->createDir($cacheDir);
-
-        # (2) Determine caching options
-        $cacheConfig = $cacheConfig ?? [
-            'storage' => $cacheDir,
-            'gc_enable' => true,
-        ];
-
-        # (3) Check provided cache driver
+        # (1) Validate provided cache driver
         if (in_array($cacheDriver, $this->cacheDrivers) === false) {
             throw new \Exception(sprintf('Cache driver "%s" cannot be initiated', $cacheDriver));
         }
 
+        # (2) Create path to caching directory (if not existent) when required by cache driver
+        if (in_array($cacheDriver, ['file', 'sqlite']) === true) {
+            $this->createDir($cacheDir);
+        }
+
+        # (3) Determine caching options
+        $cacheConfig = array_merge([
+            'storage' => $cacheDir,
+            'gc_enable' => true,
+        ], $cacheConfig);
+
         # (4) Initialize new cache object
         $this->cache = new \Shieldon\SimpleCache\Cache($cacheDriver, $cacheConfig);
 
-        # (5) Build database when using SQLite for the first time
+        # (5) Build database if using SQLite for the first time
         # TODO: Add check for MySQL, see https://github.com/terrylinooo/simple-cache/issues/8
         if ($cacheDriver == 'sqlite' && !file_exists(join([$cacheDir, 'cache.sqlite3']))) {
             $this->cache->rebuild();
@@ -257,6 +273,26 @@ class DejureOnline
         return $this->timeout;
     }
 
+    public function setStreamTimeout(int $streamTimeout): void
+    {
+        $this->streamTimeout = $streamTimeout;
+    }
+
+    public function getStreamTimeout(): string
+    {
+        return $this->streamTimeout;
+    }
+
+    public function setUserAgent(int $userAgent): void
+    {
+        $this->userAgent = $userAgent;
+    }
+
+    public function getUserAgent(): string
+    {
+        return $this->userAgent;
+    }
+
 
     /**
      * Functionality
@@ -320,8 +356,15 @@ class DejureOnline
         # (2) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
         $buzer = (int)$this->buzer;
 
-        # Note: Changing parameters requires manual cache reset!
-        $parameters = [
+        # (3) User agent for API connections
+        $userAgent = isset($this->userAgent)
+            ? $this->userAgent
+            : $this->provider . ' (PHP-Vernetzung ' . self::DJO_VERSION. ')'
+        ;
+
+        # Note: Changing parameters requires a manual cache reset!
+        $query = [
+            'Originaltext'    => $text,
             'Anbieterkennung' => $this->provider . '__' . $this->email,
             'format'          => $linkStyle,
             'target'          => $this->target,
@@ -331,80 +374,49 @@ class DejureOnline
             'Schema'          => 'https',
         ];
 
-        # Build URL-encoded request string ..
-        # (1) .. from unprocessed text
-        $request = 'Originaltext=' . urlencode($text);
+        $client = new \GuzzleHttp\Client([
+            'base_uri' => 'https://rechtsnetz.dejure.org',
+            'timeout'  => $this->timeout,
+        ]);
 
-        # (2) .. required parameters
-        foreach ($parameters as $key => $value) {
-            $request .= '&' . urlencode($key) . '=' . urlencode($value);
-        }
+        # Try to ..
+        try {
+            # .. send text for processing, but return unprocessed text if ..
+            $response = $client->request('GET', '/dienste/vernetzung/vernetzen', [
+                'headers'      => ['User-Agent' => $userAgent],
+                'query'        => $query,
+                'read_timeout' => $this->streamTimeout,
+                'stream'       => true,
+            ]);
 
-        # (3) .. and prepare request header
-        $header = 'POST /dienste/vernetzung/vernetzen HTTP/1.0' . "\r\n";
-        $header .= 'User-Agent: ' . $this->provider . ' (PHP-Vernetzung ' . self::DJO_VERSION. ')' . "\r\n";
-        $header .= 'Content-type: application/x-www-form-urlencoded' . "\r\n";
-        $header .= 'Content-length: ' . strlen($request) . "\r\n";
-        $header .= 'Host: rechtsnetz.dejure.org' . "\r\n";
-        $header .= 'Connection: close' . "\r\n";
-        $header .= "\r\n";
-
-        # Connect to API ..
-        # (1) .. over encrypted connection
-        if (extension_loaded('openssl')) {
-            $handle = fsockopen('tls://rechtsnetz.dejure.org', 443, $errorCode, $errorMessage, $this->timeout);
-        }
-
-        # (2) .. alternatively, over unencrypted connection
-        if ($handle === false) {
-            $handle = fsockopen('rechtsnetz.dejure.org', 80, $errorCode, $errorMessage, $this->timeout);
-        }
-
-        # Return unprocessed text if connection ultimately fails ..
-        if ($handle === false) {
+        # (1) .. connection breaks down or timeout is reached
+        } catch (\GuzzleHttp\Exception\TransferException $e) {
             return $text;
         }
 
-        # .. otherwise, send text for processing (until reaching timeout)
-        stream_set_timeout($handle, $this->timeout, 0);
-        stream_set_blocking($handle, true);
-        fputs($handle, $header . $request);
-
-        $socketTimeout = false;
-        $socketEOF = false;
-        $response = '';
-
-        while (!$socketEOF && !$socketTimeout) {
-            $response .= fgets($handle, 1024);
-            $socketStatus = stream_get_meta_data($handle);
-            $socketEOF = $socketStatus['eof'];
-            $socketTimeout = $socketStatus['timed_out'];
-        }
-
-        fclose($handle);
-
-        # Handle problems with data transmission, returning unprocessed text if ..
-        # (1) .. timeout is reached or connection broke down
-        if (!preg_match("/^(.*?)\r?\n\r?\n\r?\n?(.*)/s", $response, $matches)) {
-            return $text;
-        }
-
-        # (2) .. status code indicates something other than successful transfer
-        if (strpos($matches[1], '200 OK') === false) {
+        # (2) .. status code indicates unsuccessful transfer
+        if ($response->getStatusCode() !== 200) {
             return $text;
         }
 
         # (3) .. otherwise, transmission *may* have worked
-        $response = $matches[2];
+        $body = $response->getBody();
 
-        # Check if processed text is shorter than unprocessed one, which indicates corrupted data
-        if (strlen($response) < strlen($text)) {
-            return $text;
+        # Get processed text
+        $result = '';
+
+        while (!$body->eof()) {
+            $result .= $body->read(1024);
         }
 
+        # Remove whitespaces from both ends of the string
+        $result = trim($result);
+
         # Verify data integrity by comparing original & modified text
-        # (1) Remove whitespaces from both ends of the string
-        $result = trim($response);
+        # (1) Check if processed text is shorter than unprocessed one, which indicates corrupted data
+        if (strlen($result) < strlen($text)) {
+            return $text;
+        }
 
         # (2) Check if processed text (minus `dejure.org` links) matches original (unprocessed) text ..
         if (preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $text) == preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $result)) {
