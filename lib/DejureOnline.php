@@ -20,38 +20,99 @@ namespace S1SYPHOS;
 class DejureOnline
 {
     /**
-     * Constants
-     */
-
-    /**
-     * Current version of php-dejure
+     * Current version
      */
     const VERSION = '1.2.0';
 
-    /**
-     * Current API version
-     */
-
-    const DJO_VERSION = '2.22';
-
 
     /**
-     * Properties
+     * General information
      */
 
     /**
-     * Cache driver
+     * Defines provider domain
      *
-     * @var \Psr\SimpleCache\CacheInterface
+     * @var string
      */
-    protected $cache;
+    protected $domain = '';
+
 
     /**
-     * Determines whether output was fetched from cache
+     * Defines contact email address
+     *
+     * @var string
+     */
+    protected $email = '';
+
+
+    /**
+     * Text processing
+     */
+
+    /**
+     * Enables linking to 'buzer.de' if legal norm not available on dejure.org
      *
      * @var bool
      */
-    public $fromCache = false;
+    protected $buzer = true;
+
+
+    /**
+     * Controls `class` attribute
+     *
+     * @var string
+     */
+    protected $class = '';
+
+
+    /**
+     * Determines whether citation should be linked completely or rather partially
+     * Possible values: 'weit' | 'schmal'
+     *
+     * @var string
+     */
+    protected $linkStyle = 'weit';
+
+
+    /**
+     * Controls `target` attribute
+     *
+     * @var string
+     */
+    protected $target = '';
+
+
+    /**
+     * Connection
+     */
+
+    /**
+     * Defines timeout for API response streams (in seconds)
+     *
+     * @var int
+     */
+    protected $streamTimeout = 10;
+
+
+    /**
+     * Defines timeout for API requests (in seconds)
+     *
+     * @var int
+     */
+    protected $timeout = 3;
+
+
+    /**
+     * Controls `user agent` header
+     *
+     * @var string
+     */
+    protected $userAgent = null;
+
+
+    /**
+     * Cache
+     */
 
     /**
      * Holds tokens of all possible cache drivers
@@ -73,48 +134,14 @@ class DejureOnline
         'wincache',
     ];
 
-    /**
-     * Defines provider designation
-     *
-     * @var string
-     */
-    protected $provider = '';
 
     /**
-     * Defines contact email address
+     * Cache driver
      *
-     * @var string
+     * @var \Psr\SimpleCache\CacheInterface
      */
-    protected $email = '';
+    protected $cache;
 
-    /**
-     * Determines whether citation should be linked completely or rather partially
-     * Possible values: 'weit' | 'schmal'
-     *
-     * @var string
-     */
-    protected $linkStyle = 'weit';
-
-    /**
-     * Controls `target` attribute
-     *
-     * @var string
-     */
-    protected $target = '';
-
-    /**
-     * Controls `class` attribute
-     *
-     * @var string
-     */
-    protected $class = '';
-
-    /**
-     * Enables linking to 'buzer.de' if legal norm not available on dejure.org
-     *
-     * @var bool
-     */
-    protected $buzer = true;
 
     /**
      * Defines cache duration (in days)
@@ -123,43 +150,29 @@ class DejureOnline
      */
     protected $cacheDuration = 2;
 
-    /**
-     * Defines timeout for API requests (in seconds)
-     *
-     * @var int
-     */
-    protected $timeout = 3;
 
     /**
-     * Defines timeout for API response streams (in seconds)
+     * Determines whether output was fetched from cache
      *
-     * @var int
+     * @var bool
      */
-    protected $streamTimeout = 10;
+    public $fromCache = false;
+
 
     /**
-     * Controls `user agent` header
-     *
-     * @var string
-     */
-    protected $userAgent = null;
-
-
-    /*
      * Constructor
+     *
+     * @param string $cacheDriver
+     * @param array $cacheSettings
+     * @return void
      */
-
-    public function __construct(string $cacheDir = './.cache', string $cacheDriver = 'file', array $cacheConfig = []) {
+    public function __construct(string $cacheDriver = 'file', array $cacheSettings = []) {
         # Provide sensible defaults, like ..
-        if (isset($_SERVER['HTTP_HOST'])) {
-            # (1) .. current domain for provider designation
-            $this->domain = $_SERVER['HTTP_HOST'];
+        # (1) .. current domain
+        $this->domain = $_SERVER['HTTP_HOST'];
 
-            # (2) .. 'webmaster' @ current domain for contact email
-            if (empty($this->email)) {
-                $this->email = 'webmaster@' . $this->domain;
-            }
-        }
+        # (2) .. contact email
+        $this->email = 'webmaster@' . $_SERVER['HTTP_HOST'];
 
         # Initialize cache
         # (1) Validate provided cache driver
@@ -167,19 +180,16 @@ class DejureOnline
             throw new \Exception(sprintf('Cache driver "%s" cannot be initiated', $cacheDriver));
         }
 
+        # (2) Merge caching options with defaults
+        $cacheSettings = array_merge(['storage'   => './.cache'], $cacheSettings);
+
         # (2) Create path to caching directory (if not existent) when required by cache driver
         if (in_array($cacheDriver, ['file', 'sqlite']) === true) {
-            $this->createDir($cacheDir);
+            $this->createDir($cacheSettings['storage']);
         }
 
-        # (3) Determine caching options
-        $cacheConfig = array_merge([
-            'storage' => $cacheDir,
-            'gc_enable' => true,
-        ], $cacheConfig);
-
         # (4) Initialize new cache object
-        $this->cache = new \Shieldon\SimpleCache\Cache($cacheDriver, $cacheConfig);
+        $this->cache = new \Shieldon\SimpleCache\Cache($cacheDriver, $cacheSettings);
 
         # (5) Build database if using SQLite for the first time
         # TODO: Add check for MySQL, see https://github.com/terrylinooo/simple-cache/issues/8
@@ -193,100 +203,107 @@ class DejureOnline
      * Setters & getters
      */
 
-    public function setProvider(string $provider): void
-    {
-        $this->provider = $provider;
-    }
-
-    public function getProvider(): string
-    {
-        return $this->provider;
-    }
-
-    public function setMail(string $mail): void
-    {
-        $this->email = $mail;
-    }
-
-    public function getMail(): string
-    {
-        return $this->email;
-    }
-
-    public function setLinkStyle(string $linkStyle): void
-    {
-        $this->linkStyle = $linkStyle;
-    }
-
-    public function getLinkStyle(): string
-    {
-        return $this->linkStyle;
-    }
-
-    public function setTarget(string $target): void
-    {
-        $this->target = $target;
-    }
-
-    public function getTarget(): string
-    {
-        return $this->target;
-    }
-
-    public function setClass(string $class): void
-    {
-        $this->class = $class;
-    }
-
-    public function getClass(): string
-    {
-        return $this->class;
-    }
-
-    public function setBuzer(bool $buzer): void
-    {
-        $this->buzer = $buzer;
-    }
-
-    public function getBuzer(): string
-    {
-        return $this->buzer;
-    }
-
     public function setCacheDuration(int $cacheDuration): void
     {
         $this->cacheDuration = $cacheDuration;
     }
+
 
     public function getCacheDuration(): string
     {
         return $this->cacheDuration;
     }
 
-    public function setTimeout(int $timeout): void
+
+    public function setEmail(string $email): void
     {
-        $this->timeout = $timeout;
+        $this->email = $email;
     }
 
-    public function getTimeout(): string
+
+    public function getEmail(): string
     {
-        return $this->timeout;
+        return $this->email;
     }
+
+
+    public function setBuzer(bool $buzer): void
+    {
+        $this->buzer = $buzer;
+    }
+
+
+    public function getBuzer(): string
+    {
+        return $this->buzer;
+    }
+
+
+    public function setClass(string $class): void
+    {
+        $this->class = $class;
+    }
+
+
+    public function getClass(): string
+    {
+        return $this->class;
+    }
+
+
+    public function setLinkStyle(string $linkStyle): void
+    {
+        $this->linkStyle = $linkStyle;
+    }
+
+
+    public function getLinkStyle(): string
+    {
+        return $this->linkStyle;
+    }
+
+
+    public function setTarget(string $target): void
+    {
+        $this->target = $target;
+    }
+
+
+    public function getTarget(): string
+    {
+        return $this->target;
+    }
+
 
     public function setStreamTimeout(int $streamTimeout): void
     {
         $this->streamTimeout = $streamTimeout;
     }
 
+
     public function getStreamTimeout(): string
     {
         return $this->streamTimeout;
     }
 
+
+    public function setTimeout(int $timeout): void
+    {
+        $this->timeout = $timeout;
+    }
+
+
+    public function getTimeout(): string
+    {
+        return $this->timeout;
+    }
+
+
     public function setUserAgent(int $userAgent): void
     {
         $this->userAgent = $userAgent;
     }
+
 
     public function getUserAgent(): string
     {
@@ -348,29 +365,20 @@ class DejureOnline
     {
         # Normalize input
         # (1) Link style only supports two possible options
-        $linkStyle = in_array($this->linkStyle, ['weit', 'schmal']) === true
-            ? $this->linkStyle
-            : 'weit'
-        ;
+        $linkStyle = in_array($this->linkStyle, ['weit', 'schmal']) === true ? $this->linkStyle : 'weit';
 
         # (2) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
-        $buzer = (int)$this->buzer;
-
-        # (3) User agent for API connections
-        $userAgent = isset($this->userAgent)
-            ? $this->userAgent
-            : $this->provider . ' (PHP-Vernetzung ' . self::DJO_VERSION. ')'
-        ;
+        $buzer = (int) $this->buzer;
 
         # Note: Changing parameters requires a manual cache reset!
         $query = [
             'Originaltext'    => $text,
-            'Anbieterkennung' => $this->provider . '__' . $this->email,
+            'Anbieterkennung' => $this->domain . '-' . $this->email,
             'format'          => $linkStyle,
             'target'          => $this->target,
             'class'           => $this->class,
             'buzer'           => $buzer,
-            'version'         => 'php-' . self::DJO_VERSION,
+            'version'         => 'php-dejure@' . self::VERSION,
             'Schema'          => 'https',
         ];
 
@@ -378,6 +386,10 @@ class DejureOnline
             'base_uri' => 'https://rechtsnetz.dejure.org',
             'timeout'  => $this->timeout,
         ]);
+
+        # Dezermine user agent for API connections
+        $userAgent = $this->userAgent ?? 'php-dejure v' . self::VERSION . ' @ ' . $this->domain;
+        var_dump($userAgent);
 
         # Try to ..
         try {

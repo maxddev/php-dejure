@@ -4,17 +4,12 @@
 A PHP library for linking legal norms in texts with [dejure.org](https://dejure.org).
 
 
-## What
+## History
 
-This library is an OOP port of `vernetzungsfunction.inc.php`, which can be [downloaded here](https://dejure.org/vernetzung.html).
-
-
-## Why
-
-While including this file works fine, I wanted to take the object-oriented approach, stuffing all its logic into a class, with setters & getters etc.
+This library started as an OOP port of `vernetzungsfunction.inc.php`, which can be [downloaded here](https://dejure.org/vernetzung.html). Since then, `php-dejure` heavily modified the underlying caching mechanism, now providing a broad range of fully configurable cache drivers while featuring more text processing options.
 
 
-## How
+## Getting started
 
 Install this package with [Composer](https://getcomposer.org):
 
@@ -33,8 +28,8 @@ use S1SYPHOS\DejureOnline;
 
 $object = new DejureOnline();
 
-$object->setProvider('MyDejureTest');
-$object->setMail('hello@mydomain.com');
+$object->setEmail('hello@mydomain.com');
+$object->setTarget('_blank');
 
 $text  = '<div>';
 $text .= 'This is a <strong>simple</strong> HTML text.';
@@ -52,9 +47,9 @@ echo $object->dejurify($text);
 - [x] ~~Adding checks to `__construct`~~
 - [x] ~~Attempt cache directory creation~~
 - [x] ~~Improve code~~
-- [ ] Improve code more
-- [ ] Translate code (almost done)
-- [ ] `join` paths, so trailing slash is no longer required
+- [x] ~~Improve code more~~
+- [x] ~~Translate code (almost done)~~
+- [x] ~~`join` paths, so trailing slash is no longer required~~
 
 
 **Happy coding!**
