@@ -22,7 +22,7 @@ class DejureOnline
     /**
      * Current version
      */
-    const VERSION = '1.3.0';
+    const VERSION = '1.3.1';
 
 
     /**
@@ -135,7 +135,7 @@ class DejureOnline
 
 
     /**
-     * Cache
+     * Caching
      */
 
     /**
@@ -347,7 +347,7 @@ class DejureOnline
     }
 
 
-    public function setUserAgent(int $userAgent): void
+    public function setUserAgent(string $userAgent): void
     {
         $this->userAgent = $userAgent;
     }
@@ -455,7 +455,7 @@ class DejureOnline
         try {
             # .. send text for processing, but return unprocessed text if ..
             $response = $client->request('GET', '/dienste/vernetzung/vernetzen', [
-                'headers'      => ['User-Agent' => $userAgent, "Content-Type" => 'application/x-www-form-urlencoded; charset=UTF-8;'],
+                'headers'      => ['User-Agent' => $userAgent, 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8;'],
                 'query'        => $query,
                 'read_timeout' => $this->streamTimeout,
                 'stream'       => true,
