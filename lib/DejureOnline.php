@@ -66,7 +66,7 @@ class DejureOnline
 
 
     /**
-     * Determines whether citation should be linked completely or rather partially
+     * Determines processing across line breaks
      *
      * Possible values:
      * 'ohne' | 'mit' | 'auto'
@@ -77,10 +77,16 @@ class DejureOnline
 
 
     /**
-     * Determines whether citation should be linked completely or rather partially
+     * Determines link range of `a` element
      *
      * Possible values:
      * 'weit' | 'schmal'
+     *
+     * Example 1: 'weit'
+     * <a href="">§ 185 StGB</a>
+     *
+     * Example 2: 'schmal'
+     * § <a href="">185</a> StGB
      *
      * @var string
      */
@@ -96,7 +102,7 @@ class DejureOnline
 
 
     /**
-     * Controls `title` attribute
+     * Controls (granularity of) `title` attribute
      *
      * Possible values:
      * 'ohne' | 'neutral' | 'Gesetze' | 'halb'
@@ -127,7 +133,7 @@ class DejureOnline
 
 
     /**
-     * Controls `user agent` header
+     * Controls `User-Agent` header
      *
      * @var string
      */
