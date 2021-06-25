@@ -22,7 +22,7 @@ class DejureOnline
     /**
      * Current version
      */
-    const VERSION = '1.2.0';
+    const VERSION = '1.3.0';
 
 
     /**
@@ -67,7 +67,20 @@ class DejureOnline
 
     /**
      * Determines whether citation should be linked completely or rather partially
-     * Possible values: 'weit' | 'schmal'
+     *
+     * Possible values:
+     * 'ohne' | 'mit' | 'auto'
+     *
+     * @var string
+     */
+    protected $lineBreak = 'auto';
+
+
+    /**
+     * Determines whether citation should be linked completely or rather partially
+     *
+     * Possible values:
+     * 'weit' | 'schmal'
      *
      * @var string
      */
@@ -80,6 +93,17 @@ class DejureOnline
      * @var string
      */
     protected $target = '';
+
+
+    /**
+     * Controls `title` attribute
+     *
+     * Possible values:
+     * 'ohne' | 'neutral' | 'Gesetze' | 'halb'
+     *
+     * @var string
+     */
+    protected $tooltip = 'neutral';
 
 
     /**
@@ -251,6 +275,18 @@ class DejureOnline
     }
 
 
+    public function setLineBreak(string $lineBreak): void
+    {
+        $this->lineBreak = $lineBreak;
+    }
+
+
+    public function getLineBreak(): string
+    {
+        return $this->lineBreak;
+    }
+
+
     public function setLinkStyle(string $linkStyle): void
     {
         $this->linkStyle = $linkStyle;
@@ -272,6 +308,18 @@ class DejureOnline
     public function getTarget(): string
     {
         return $this->target;
+    }
+
+
+    public function setTooltip(string $tooltip): void
+    {
+        $this->tooltip = $tooltip;
+    }
+
+
+    public function getTooltip(): string
+    {
+        return $this->tooltip;
     }
 
 
@@ -321,7 +369,7 @@ class DejureOnline
      * @param string $text Original (unprocessed) text
      * @return string Processed text if successful, otherwise unprocessed text
      */
-    public function dejurify(string $text = ''): string
+    public function dejurify(string $text = '', string $ignore = ''): string
     {
         # Return text as-is if no linkable citations are found
         if (!preg_match("/§|&sect;|Art\.|\/[0-9][0-9](?![0-9\/])| [0-9][0-9]?[\/\.][0-9][0-9](?![0-9\.])|[0-9][0-9], /", $text)) {
@@ -347,7 +395,7 @@ class DejureOnline
         }
 
         # .. otherwise, process text & cache it
-        return $this->connect($text);
+        return $this->connect($text, $ignore);
     }
 
 
@@ -361,26 +409,39 @@ class DejureOnline
      * @param string $text Original (unprocessed) text
      * @return string Processed text if successful, otherwise unprocessed text
      */
-    protected function connect(string $text): string
+    protected function connect(string $text, string $ignore): string
     {
         # Normalize input
-        # (1) Link style only supports two possible options
+        # (1) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
+        $buzer = (int) $this->buzer;
+
+        # (2) Line break only supports three possible options
+        $lineBreak = in_array($this->lineBreak, ['ohne', 'mit', 'auto']) === true ? $this->lineBreak : 'auto';
+
+        # (2) Link style only supports two possible options
         $linkStyle = in_array($this->linkStyle, ['weit', 'schmal']) === true ? $this->linkStyle : 'weit';
 
-        # (2) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
-        $buzer = (int) $this->buzer;
+        # (3) Tooltip only supports four possible options
+        $tooltip = in_array($this->tooltip, ['ohne', 'neutral', 'Gesetze', 'halb']) === true ? $this->tooltip : 'neutral';
 
         # Note: Changing parameters requires a manual cache reset!
         $query = [
             'Originaltext'    => $text,
             'Anbieterkennung' => $this->domain . '-' . $this->email,
             'format'          => $linkStyle,
+            'Tooltip'         => $tooltip,
+            'Zeilenwechsel'   => $lineBreak,
             'target'          => $this->target,
             'class'           => $this->class,
             'buzer'           => $buzer,
             'version'         => 'php-dejure@' . self::VERSION,
             'Schema'          => 'https',
         ];
+
+        # Ignore file number (if provided)
+        if (!empty($ignore)) {
+            $query['AktenzeichenIgnorieren'] = $ignore;
+        }
 
         $client = new \GuzzleHttp\Client([
             'base_uri' => 'https://rechtsnetz.dejure.org',
@@ -389,13 +450,12 @@ class DejureOnline
 
         # Dezermine user agent for API connections
         $userAgent = $this->userAgent ?? 'php-dejure v' . self::VERSION . ' @ ' . $this->domain;
-        var_dump($userAgent);
 
         # Try to ..
         try {
             # .. send text for processing, but return unprocessed text if ..
             $response = $client->request('GET', '/dienste/vernetzung/vernetzen', [
-                'headers'      => ['User-Agent' => $userAgent],
+                'headers'      => ['User-Agent' => $userAgent, "Content-Type" => 'application/x-www-form-urlencoded; charset=UTF-8;'],
                 'query'        => $query,
                 'read_timeout' => $this->streamTimeout,
                 'stream'       => true,
