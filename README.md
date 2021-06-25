@@ -44,12 +44,13 @@ echo $object->dejurify($text);
 ## Roadmap
 
 - [ ] Add tests
-- [x] ~~Adding checks to `__construct`~~
+- [x] ~~Add checks to `__construct`~~
 - [x] ~~Attempt cache directory creation~~
 - [x] ~~Improve code~~
 - [x] ~~Improve code more~~
 - [x] ~~Translate code (almost done)~~
 - [x] ~~`join` paths, so trailing slash is no longer required~~
+- [x] ~~Add cache reset function~~
 
 
 **Happy coding!**
