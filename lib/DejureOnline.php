@@ -22,7 +22,7 @@ class DejureOnline
     /**
      * Current version
      */
-    const VERSION = '1.3.2';
+    const VERSION = '1.3.3';
 
 
     /**
@@ -105,11 +105,11 @@ class DejureOnline
      * Controls (granularity of) `title` attribute
      *
      * Possible values:
-     * 'ohne' | 'neutral' | 'Gesetze' | 'halb'
+     * 'ohne' | 'neutral' | 'beschreibend' | 'Gesetze' | 'halb'
      *
      * @var string
      */
-    protected $tooltip = 'neutral';
+    protected $tooltip = 'beschreibend';
 
 
     /**
@@ -419,32 +419,19 @@ class DejureOnline
      */
     protected function connect(string $text, string $ignore): string
     {
-        # Normalize input
-        # (1) Whether linking unknown legal norms to `buzer.de` or not needs to be an integer
-        $buzer = (int) $this->buzer;
-
-        # (2) Line break only supports three possible options
-        $lineBreak = in_array($this->lineBreak, ['ohne', 'mit', 'auto']) === true ? $this->lineBreak : 'auto';
-
-        # (2) Link style only supports two possible options
-        $linkStyle = in_array($this->linkStyle, ['weit', 'schmal']) === true ? $this->linkStyle : 'weit';
-
-        # (3) Tooltip only supports four possible options
-        $tooltip = in_array($this->tooltip, ['ohne', 'neutral', 'Gesetze', 'halb']) === true ? $this->tooltip : 'neutral';
-
         # Prepare query parameters
         # Attention: Changing parameters requires a manual cache reset!
         $query = [
-            'Originaltext'    => $text,
-            'Anbieterkennung' => $this->domain . '-' . $this->email,
-            'format'          => $linkStyle,
-            'Tooltip'         => $tooltip,
-            'Zeilenwechsel'   => $lineBreak,
-            'target'          => $this->target,
-            'class'           => $this->class,
-            'buzer'           => $buzer,
-            'version'         => 'php-dejure@' . self::VERSION,
-            'Schema'          => 'https',
+            'Originaltext'           => $text,
+            'AktenzeichenIgnorieren' => '',
+            'Anbieterkennung'        => $this->domain . '-' . $this->email,
+            'format'                 => $this->linkStyle,
+            'Tooltip'                => $this->tooltip,
+            'Zeilenwechsel'          => $this->lineBreak,
+            'target'                 => $this->target,
+            'class'                  => $this->class,
+            'buzer'                  => $this->buzer,
+            'version'                => 'php-dejure@' . self::VERSION,
         ];
 
         # Ignore file number (if provided)
@@ -471,7 +458,7 @@ class DejureOnline
                 'stream'       => true,
             ]);
 
-        # (1) .. connection breaks down or timeout is reached
+            # (1) .. connection breaks down or timeout is reached
         } catch (\GuzzleHttp\Exception\TransferException $e) {
             return $text;
         }
