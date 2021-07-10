@@ -3,8 +3,8 @@
 /**
  * php-dejure - Linking texts with dejure.org, the Class(y) way.
  *
- * @link https:#github.com/S1SYPHOS/php-dejure
- * @license https:#opensource.org/licenses/MIT MIT
+ * @link https://github.com/S1SYPHOS/php-dejure
+ * @license https://opensource.org/licenses/MIT MIT
  */
 
 namespace S1SYPHOS;
@@ -22,7 +22,7 @@ class DejureOnline
     /**
      * Current version
      */
-    const VERSION = '1.3.3';
+    const VERSION = '1.3.4';
 
 
     /**
@@ -223,7 +223,7 @@ class DejureOnline
 
         # (5) Build database if using SQLite for the first time
         # TODO: Add check for MySQL, see https://github.com/terrylinooo/simple-cache/issues/8
-        if ($cacheDriver == 'sqlite' && !file_exists(join([$cacheDir, 'cache.sqlite3']))) {
+        if ($cacheDriver === 'sqlite' && !file_exists(join([$cacheSettings['storage'], 'cache.sqlite3']))) {
             $this->cache->rebuild();
         }
     }
@@ -571,7 +571,7 @@ class DejureOnline
         }
 
         if (is_writable($parent) === false) {
-            throw new Exception(sprintf('The directory "%s" cannot be created', $dir));
+            throw new \Exception(sprintf('The directory "%s" cannot be created', $dir));
         }
 
         return mkdir($dir);
