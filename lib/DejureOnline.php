@@ -379,15 +379,12 @@ class DejureOnline
     public function dejurify(string $text = '', string $ignore = ''): string
     {
         # Return text as-is if no linkable citations are found
-        if (!preg_match("/§|&sect;|Art\.|\/[0-9][0-9](?![0-9\/])| [0-9][0-9]?[\/\.][0-9][0-9](?![0-9\.])|[0-9][0-9], /", $text)) {
+        if (!preg_match("((?:§|&sect;|Art\.)\s*[0-9]+\s*[a-z]?\s\w+)", $text)) {
             return $text;
         }
 
         # Remove whitespaces from both ends of the string
         $text = trim($text);
-
-        # Check if text was processed & cached before ..
-        $result = false;
 
         # Build unique caching key
         $hash = $this->text2hash($text);
@@ -445,12 +442,11 @@ class DejureOnline
             'timeout'  => $this->timeout,
         ]);
 
-        # Dezermine user agent for API connections
+        # Determine user agent for API connections
         $userAgent = $this->userAgent ?? 'php-dejure v' . self::VERSION . ' @ ' . $this->domain;
 
-        # Try to ..
+        # Try to send text for processing, but return unprocessed text if ..
         try {
-            # .. send text for processing, but return unprocessed text if ..
             $response = $client->request('GET', '/dienste/vernetzung/vernetzen', [
                 'headers'      => ['User-Agent' => $userAgent, 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8;'],
                 'query'        => $query,
@@ -458,7 +454,7 @@ class DejureOnline
                 'stream'       => true,
             ]);
 
-            # (1) .. connection breaks down or timeout is reached
+        # (1) .. connection breaks down or timeout is reached
         } catch (\GuzzleHttp\Exception\TransferException $e) {
             return $text;
         }
