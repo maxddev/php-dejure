@@ -22,7 +22,7 @@ class DejureOnline
     /**
      * Current version
      */
-    const VERSION = '1.3.4';
+    const VERSION = '1.4.0';
 
 
     /**
