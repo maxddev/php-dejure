@@ -3,7 +3,7 @@
     "description": "Linking texts with dejure.org, the Class(y) way.",
     "type": "library",
     "license": "MIT",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "keywords": ["api", "legal", "dejure", "dejure.org"],
     "homepage": "https://github.com/S1SYPHOS",
     "scripts": {

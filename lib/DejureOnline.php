@@ -5,6 +5,7 @@
  *
  * @link https://github.com/S1SYPHOS/php-dejure
  * @license https://opensource.org/licenses/MIT MIT
+ * @version 1.4.1
  */
 
 namespace S1SYPHOS;
@@ -19,12 +20,6 @@ namespace S1SYPHOS;
  */
 class DejureOnline
 {
-    /**
-     * Current version
-     */
-    const VERSION = '1.4.0';
-
-
     /**
      * General information
      */
