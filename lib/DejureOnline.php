@@ -197,12 +197,15 @@ class DejureOnline
      * @return void
      */
     public function __construct(string $cacheDriver = 'file', array $cacheSettings = []) {
-        # Provide sensible defaults, like ..
-        # (1) .. current domain
-        $this->domain = $_SERVER['HTTP_HOST'];
+        # When not in CLI mode or other edge cases ..
+        if (isset($_SERVER['HTTP_HOST'])) {
+            # .. provide sensible defaults, like ..
+            # (1) .. current domain
+            $this->domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
-        # (2) .. contact email
-        $this->email = 'webmaster@' . $_SERVER['HTTP_HOST'];
+            # (2) .. contact email
+            $this->email = 'webmaster@' . $this->domain;
+        }
 
         # Initialize cache
         # (1) Validate provided cache driver
