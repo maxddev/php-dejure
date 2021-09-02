@@ -5,7 +5,7 @@
  *
  * @link https://github.com/S1SYPHOS/php-dejure
  * @license https://opensource.org/licenses/MIT MIT
- * @version 1.4.1
+ * @version 1.4.2
  */
 
 namespace S1SYPHOS;
