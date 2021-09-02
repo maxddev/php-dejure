@@ -243,6 +243,18 @@ class DejureOnline
     }
 
 
+    public function setDomain(string $domain): void
+    {
+        $this->domain = $domain;
+    }
+
+
+    public function getDomain(): string
+    {
+        return $this->domain;
+    }
+
+
     public function setEmail(string $email): void
     {
         $this->email = $email;
