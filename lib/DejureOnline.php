@@ -389,6 +389,9 @@ class DejureOnline
         # Remove whitespaces from both ends of the string
         $text = trim($text);
 
+        # Reset cache query success
+        $this->fromCache = false;
+
         # Build unique caching key
         $hash = $this->text2hash($text);
 
