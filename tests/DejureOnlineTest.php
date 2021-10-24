@@ -98,5 +98,17 @@ class DejureOnlineTest extends \PHPUnit\Framework\TestCase
 
         # Assert result
         $this->assertEquals(count($result), 2);
+
+        # Run function
+        foreach (['', 'class', 'another-class', 'yet/another/class'] as $class) {
+            $object->setClass($class);
+            @$dom->loadHTML($object->dejurify($string));
+            $result = $dom->getElementsByTagName('a');
+
+            # Assert result
+            foreach ($result as $node) {
+                $this->assertEquals($class, $node->getAttribute('class'));
+            }
+        }
     }
 }
