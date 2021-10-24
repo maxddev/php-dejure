@@ -395,6 +395,7 @@ class DejureOnline
      *
      * @param string $text Original (unprocessed) text
      * @param string $ignore Judicial file numbers to be ignored
+     *
      * @return string Processed text if successful, otherwise unprocessed text
      */
     public function dejurify(string $text = '', string $ignore = ''): string
@@ -410,8 +411,11 @@ class DejureOnline
         # Reset cache query success
         $this->fromCache = false;
 
+        # Prepare query parameters for API call
+        $query = $this->createQuery($text, $ignore);
+
         # Build unique caching key
-        $hash = $this->text2hash($text);
+        $hash = $this->query2hash($query);
 
         # If cache file exists & its content is valid (= not expired) ..
         if ($this->cache->has($hash) === true) {
@@ -420,44 +424,6 @@ class DejureOnline
 
             # (2) .. load processed text from cache
             return $this->cache->get($hash);
-        }
-
-        # .. otherwise, process text & cache it
-        return $this->connect($text, $ignore);
-    }
-
-
-    /**
-     * Processes text by connecting to API:
-     * (1) Sends unprocessed text
-     * (2) Receives processed text
-     * (3) Checks data integrity
-     * (4) Stores result in cache
-     *
-     * @param string $text Original (unprocessed) text
-     * @param string $ignore Judicial file numbers to be ignored
-     * @return string Processed text if successful, otherwise unprocessed text
-     */
-    protected function connect(string $text, string $ignore): string
-    {
-        # Prepare query parameters
-        # Attention: Changing parameters requires a manual cache reset!
-        $query = [
-            'Originaltext'           => $text,
-            'AktenzeichenIgnorieren' => '',
-            'Anbieterkennung'        => $this->domain . '-' . $this->email,
-            'format'                 => $this->linkStyle,
-            'Tooltip'                => $this->tooltip,
-            'Zeilenwechsel'          => $this->lineBreak,
-            'target'                 => $this->target,
-            'class'                  => $this->class,
-            'buzer'                  => $this->buzer,
-            'version'                => 'php-dejure@' . $this->version,
-        ];
-
-        # Ignore file number (if provided)
-        if (!empty($ignore)) {
-            $query['AktenzeichenIgnorieren'] = $ignore;
         }
 
         # Initialize HTTP client
@@ -510,7 +476,7 @@ class DejureOnline
         # (2) Check if processed text (minus `dejure.org` links) matches original (unprocessed) text ..
         if (preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $text) == preg_replace("/<a href=\"https?:\/\/dejure.org\/[^>]*>([^<]*)<\/a>/i", "\\1", $result)) {
             # Build unique caching key & store result in cache
-            $this->cache->set($this->text2hash($text), $result, $this->days2seconds($this->cacheDuration));
+            $this->cache->set($hash, $result, $this->days2seconds($this->cacheDuration));
 
             return $result;
         }
@@ -539,26 +505,55 @@ class DejureOnline
      */
 
     /**
+     * Builds query parameters
+     *
+     * Attention: Changing parameters requires a manual cache reset!
+     *
+     * @param string $text Original (unprocessed) text
+     * @param string $ignore Judicial file numbers to be ignored
+     *
+     * @return array
+     */
+    protected function createQuery(string $text, string $ignore): array
+    {
+        return [
+            'Originaltext'           => $text,
+            'AktenzeichenIgnorieren' => $ignore,
+            'Anbieterkennung'        => $this->domain . '-' . $this->email,
+            'format'                 => $this->linkStyle,
+            'Tooltip'                => $this->tooltip,
+            'Zeilenwechsel'          => $this->lineBreak,
+            'target'                 => $this->target,
+            'class'                  => $this->class,
+            'buzer'                  => $this->buzer,
+            'version'                => 'php-dejure@' . $this->version,
+        ];
+    }
+
+
+    /**
+     * Builds hash from text length & query parameters
+     *
+     * @param array $query Query parameters (including content)
+     *
+     * @return string
+     */
+    protected function query2hash(array $query): string
+    {
+        return strlen($query['Originaltext']) . md5(json_encode($query));
+    }
+
+
+    /**
      * Converts days to seconds
      *
      * @param int $days
+     *
      * @return int
      */
     protected function days2seconds(int $days): int
     {
         return $days * 24 * 60 * 60;
-    }
-
-
-    /**
-     * Builds hash from text length & content
-     *
-     * @param string $text
-     * @return string
-     */
-    protected function text2hash(string $text): string
-    {
-        return strlen($text) . md5($text);
     }
 
 
@@ -570,6 +565,7 @@ class DejureOnline
      *
      * @param string $dir The path for the new directory
      * @param bool $recursive Create all parent directories, which don't exist
+     *
      * @return bool True: the dir has been created, false: creating failed
      */
     protected function createDir(string $dir, bool $recursive = true): bool
