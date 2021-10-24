@@ -5,7 +5,7 @@
  *
  * @link https://github.com/S1SYPHOS/php-dejure
  * @license https://opensource.org/licenses/MIT MIT
- * @version 1.4.3
+ * @version 1.5.0
  */
 
 namespace S1SYPHOS;
@@ -25,7 +25,7 @@ class DejureOnline
      *
      * @var string
      */
-    private $version = '1.4.3';
+    private $version = '1.5.0';
 
 
     /**
