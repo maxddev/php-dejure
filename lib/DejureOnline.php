@@ -33,6 +33,12 @@ class DejureOnline
      */
 
     /**
+     * API base URL
+     */
+    private $baseUrl = 'https://rechtsnetz.dejure.org';
+
+
+    /**
      * Defines provider domain
      *
      * @var string
@@ -140,7 +146,7 @@ class DejureOnline
      *
      * @var string
      */
-    protected $userAgent = null;
+    protected $userAgent;
 
 
     /**
@@ -203,6 +209,9 @@ class DejureOnline
      */
     public function __construct(string $cacheDriver = 'file', array $cacheSettings = [])
     {
+        # Set default user agent
+        $this->userAgent = 'php-dejure v' . $this->version;
+
         # When not in CLI mode or other edge cases ..
         if (isset($_SERVER['HTTP_HOST'])) {
             # .. provide sensible defaults, like ..
@@ -211,6 +220,9 @@ class DejureOnline
 
             # (2) .. contact email
             $this->email = 'webmaster@' . $this->domain;
+
+            # (3) .. extend user agent
+            $this->userAgent .= ' @ ' . $this->domain;
         }
 
         # Initialize cache
@@ -428,20 +440,20 @@ class DejureOnline
 
         # Initialize HTTP client
         $client = new \GuzzleHttp\Client([
-            'base_uri' => 'https://rechtsnetz.dejure.org',
+            'base_uri' => $this->baseUrl,
             'timeout'  => $this->timeout,
         ]);
-
-        # Determine user agent for API connections
-        $userAgent = $this->userAgent ?? 'php-dejure v' . $this->version . ' @ ' . $this->domain;
 
         # Try to send text for processing, but return unprocessed text if ..
         try {
             $response = $client->request('GET', '/dienste/vernetzung/vernetzen', [
-                'headers'      => ['User-Agent' => $userAgent, 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8;'],
                 'query'        => $query,
-                'read_timeout' => $this->streamTimeout,
                 'stream'       => true,
+                'read_timeout' => $this->streamTimeout,
+                'headers'      => [
+                    'User-Agent' => $this->userAgent,
+                    'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8;'
+                ],
             ]);
 
         # (1) .. connection breaks down or timeout is reached
