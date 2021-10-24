@@ -21,6 +21,14 @@ namespace S1SYPHOS;
 class DejureOnline
 {
     /**
+     * Package version
+     *
+     * @var string
+     */
+    private $version = '1.4.2';
+
+
+    /**
      * General information
      */
 
@@ -444,7 +452,7 @@ class DejureOnline
             'target'                 => $this->target,
             'class'                  => $this->class,
             'buzer'                  => $this->buzer,
-            'version'                => 'php-dejure@' . self::VERSION,
+            'version'                => 'php-dejure@' . $this->version,
         ];
 
         # Ignore file number (if provided)
@@ -459,7 +467,7 @@ class DejureOnline
         ]);
 
         # Determine user agent for API connections
-        $userAgent = $this->userAgent ?? 'php-dejure v' . self::VERSION . ' @ ' . $this->domain;
+        $userAgent = $this->userAgent ?? 'php-dejure v' . $this->version . ' @ ' . $this->domain;
 
         # Try to send text for processing, but return unprocessed text if ..
         try {
