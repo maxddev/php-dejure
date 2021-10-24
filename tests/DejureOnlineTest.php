@@ -72,20 +72,31 @@ class DejureOnlineTest extends \PHPUnit\Framework\TestCase
     public function testDejurify(): void
     {
         # Setup
-        # (1) Text containing legal norms
+        # (1) Instance
+        $object = new \S1SYPHOS\DejureOnline();
+
+        # (2) Text containing legal norms
         $string  = '<div>';
         $string .= 'This is a <strong>simple</strong> HTML text.';
         $string .= 'It contains legal norms, like Art. 12 GG.';
-        $string .= '.. or § 433 BGB!';
+        $string .= '.. or § 433 BGB!!!';
         $string .= '</div>';
 
-        # (2) Instance
-        $object = new \S1SYPHOS\DejureOnline();
+        # (3) HTML content
+        $dom = new \DOMDocument;
 
         # Run function
-        $result = preg_match_all('~[a-z]+://\S+~', $object->dejurify($string));
+        @$dom->loadHTML($string);
+        $result = $dom->getElementsByTagName('a');
 
         # Assert result
-        $this->assertEquals($result, 2);
+        $this->assertEquals(count($result), 0);
+
+        # Run function
+        @$dom->loadHTML($object->dejurify($string));
+        $result = $dom->getElementsByTagName('a');
+
+        # Assert result
+        $this->assertEquals(count($result), 2);
     }
 }
