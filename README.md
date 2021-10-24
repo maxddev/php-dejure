@@ -33,7 +33,7 @@ $object->setTarget('_blank');
 
 $text  = '<div>';
 $text .= 'This is a <strong>simple</strong> HTML text.';
-$text .= 'It contains legal norms, like § Art. 12 GG.';
+$text .= 'It contains legal norms, like Art. 12 GG.';
 $text .= '.. or § 433 BGB!';
 $text .= '</div>';
 

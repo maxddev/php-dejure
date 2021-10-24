@@ -189,9 +189,12 @@ class DejureOnline
      *
      * @param string $cacheDriver
      * @param array $cacheSettings
+     *
      * @return void
+     * @throws \Exception
      */
-    public function __construct(string $cacheDriver = 'file', array $cacheSettings = []) {
+    public function __construct(string $cacheDriver = 'file', array $cacheSettings = [])
+    {
         # When not in CLI mode or other edge cases ..
         if (isset($_SERVER['HTTP_HOST'])) {
             # .. provide sensible defaults, like ..
