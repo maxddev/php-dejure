@@ -248,7 +248,7 @@ class DejureOnline
     }
 
 
-    public function getCacheDuration(): string
+    public function getCacheDuration(): int
     {
         return $this->cacheDuration;
     }
@@ -284,7 +284,7 @@ class DejureOnline
     }
 
 
-    public function getBuzer(): string
+    public function getBuzer(): bool
     {
         return $this->buzer;
     }
@@ -356,7 +356,7 @@ class DejureOnline
     }
 
 
-    public function getStreamTimeout(): string
+    public function getStreamTimeout(): int
     {
         return $this->streamTimeout;
     }
