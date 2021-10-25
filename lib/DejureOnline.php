@@ -234,7 +234,7 @@ class DejureOnline
         # (2) Merge caching options with defaults
         $cacheSettings = array_merge(['storage'   => './.cache'], $cacheSettings);
 
-        # (2) Create path to caching directory (if not existent) when required by cache driver
+        # (3) Create path to caching directory (if not existent) when required by cache driver
         if (in_array($cacheDriver, ['file', 'sqlite']) === true) {
             $this->createDir($cacheSettings['storage']);
         }
@@ -409,6 +409,7 @@ class DejureOnline
      * @param string $ignore Judicial file numbers to be ignored
      *
      * @return string Processed text if successful, otherwise unprocessed text
+     * @throws \Exception
      */
     public function dejurify(string $text = '', string $ignore = ''): string
     {
@@ -423,8 +424,14 @@ class DejureOnline
         # Reset cache query success
         $this->fromCache = false;
 
-        # Prepare query parameters for API call
-        $query = $this->createQuery($text, $ignore);
+        # Attempt to ..
+        try {
+            # .. prepare query parameters for API call
+            $query = $this->createQuery($text, $ignore);
+
+        } catch (\Exception $e) {
+            throw $e;
+        }
 
         # Build unique caching key
         $hash = $this->query2hash($query);
@@ -525,9 +532,26 @@ class DejureOnline
      * @param string $ignore Judicial file numbers to be ignored
      *
      * @return array
+     * @throws \Exception
      */
     protected function createQuery(string $text, string $ignore): array
     {
+        # Fail early for invalid API parameters
+        # (1) Link style
+        if (in_array($this->linkStyle, ['weit', 'schmal']) === false) {
+            throw new \Exception(sprintf('Invalid link style: "%s"', $this->linkStyle));
+        }
+
+        # (2) Tooltip
+        if (in_array($this->tooltip, ['ohne', 'neutral', 'beschreibend', 'Gesetze', 'halb']) === false) {
+            throw new \Exception(sprintf('Invalid tooltip: "%s"', $this->tooltip));
+        }
+
+        # (3) Line break
+        if (in_array($this->lineBreak, ['ohne', 'mit', 'auto']) === false) {
+            throw new \Exception(sprintf('Invalid tooltip: "%s"', $this->tooltip));
+        }
+
         return [
             'Originaltext'           => $text,
             'AktenzeichenIgnorieren' => $ignore,
