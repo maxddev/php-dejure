@@ -43,7 +43,7 @@ echo $object->dejurify($text);
 
 ## Roadmap
 
-- [ ] Add tests
+- [x] ~~Add tests~~
 - [x] ~~Add checks to `__construct`~~
 - [x] ~~Attempt cache directory creation~~
 - [x] ~~Improve code~~
