@@ -97,7 +97,7 @@ class DejureOnlineTest extends \PHPUnit\Framework\TestCase
         ];
 
         # Assert exception
-        $this->expectException(\Exception::class);
+        $this->expectException(\S1SYPHOS\Exceptions\InvalidCacheDriverException::class);
 
         foreach ($cacheDrivers as $cacheDriver) {
             # Run function

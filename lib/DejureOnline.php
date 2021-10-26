@@ -205,7 +205,7 @@ class DejureOnline
      * @param array $cacheSettings
      *
      * @return void
-     * @throws \Exception
+     * @throws \S1SYPHOS\Exceptions\InvalidCacheDriverException
      */
     public function __construct(string $cacheDriver = 'file', array $cacheSettings = [])
     {
@@ -228,7 +228,7 @@ class DejureOnline
         # Initialize cache
         # (1) Validate provided cache driver
         if (in_array($cacheDriver, $this->cacheDrivers) === false) {
-            throw new \Exception(sprintf('Cache driver "%s" cannot be initiated', $cacheDriver));
+            throw new \S1SYPHOS\Exceptions\InvalidCacheDriverException(sprintf('Invalid cache driver: "%s"', $cacheDriver));
         }
 
         # (2) Merge caching options with defaults
@@ -409,7 +409,7 @@ class DejureOnline
      * @param string $ignore Judicial file numbers to be ignored
      *
      * @return string Processed text if successful, otherwise unprocessed text
-     * @throws \Exception
+     * @throws \S1SYPHOS\Exceptions\InvalidParameterException
      */
     public function dejurify(string $text = '', string $ignore = ''): string
     {
@@ -539,17 +539,17 @@ class DejureOnline
         # Fail early for invalid API parameters
         # (1) Link style
         if (in_array($this->linkStyle, ['weit', 'schmal']) === false) {
-            throw new \Exception(sprintf('Invalid link style: "%s"', $this->linkStyle));
+            throw new \S1SYPHOS\Exceptions\InvalidParameterException(sprintf('Invalid link style: "%s"', $this->linkStyle));
         }
 
         # (2) Tooltip
         if (in_array($this->tooltip, ['ohne', 'neutral', 'beschreibend', 'Gesetze', 'halb']) === false) {
-            throw new \Exception(sprintf('Invalid tooltip: "%s"', $this->tooltip));
+            throw new \S1SYPHOS\Exceptions\InvalidParameterException(sprintf('Invalid tooltip: "%s"', $this->tooltip));
         }
 
         # (3) Line break
         if (in_array($this->lineBreak, ['ohne', 'mit', 'auto']) === false) {
-            throw new \Exception(sprintf('Invalid tooltip: "%s"', $this->tooltip));
+            throw new \S1SYPHOS\Exceptions\InvalidParameterException(sprintf('Invalid tooltip: "%s"', $this->tooltip));
         }
 
         return [
@@ -603,6 +603,7 @@ class DejureOnline
      * @param bool $recursive Create all parent directories, which don't exist
      *
      * @return bool True: the dir has been created, false: creating failed
+     * @throws \Exception
      */
     protected function createDir(string $dir, bool $recursive = true): bool
     {
