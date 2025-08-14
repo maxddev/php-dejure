@@ -105,7 +105,7 @@ class DejureOnline
         ]);
 
         try {
-            $response = $client->request('GET', '/dienste/vernetzung/vernetzen', [
+            $response = $client->request('POST', '/dienste/vernetzung/vernetzen', [
                 'query'        => $query,
                 'stream'       => true,
                 'read_timeout' => $this->streamTimeout,
